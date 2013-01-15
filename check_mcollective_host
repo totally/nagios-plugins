@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+
+# check_mcollective_host:
+# https://github.com/totally/nagios-plugins
+# 
+# Is a given host connected to mcollective?  Find out with this plugin.
+#
+# This nagios plugin checks for a server connected to mcollective with 
+# the fact 'clientcert'.  You could use any custom fact.  This is a unique
+# identifier in my environment, so I ran with it.
+#
+# This plugin has no warranty, it could very well burn down your house.
+# Use it at your own risk.  All caps.
+#
+# This software is released under the Apache 2 license.
+
+require 'mcollective'
+include MCollective::RPC
+
+require 'optparse'
+hash_options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: $0 -h certname"
+  # Use clientcert unique id
+  opts.on('-h [ARG]', '--clientcert [ARG]', "Specify the name of the clientcert") do |v|
+    hash_options[:clientcert] = v
+  end
+  opts.on('--help', 'Display this help') do
+    puts opts
+    exit
+  end
+end.parse!
+
+# Got clientcert?
+raise OptionParser::MissingArgument if hash_options[:clientcert].nil?
+
+mc = rpcclient("rpcutil")
+mc.progress = false
+
+mc.fact_filter "clientcert", hash_options[:clientcert]
+
+clientcert = []
+mc.get_fact(:fact => "clientcert").each do |resp|
+    clientcert << resp[:data][:value] 
+end
+
+if 1 == clientcert.count
+    puts "Server [#{hash_options[:clientcert]}] is connected to mcollective"
+    exit 0
+else
+    puts "Server [#{hash_options[:clientcert]}] is NOT connected to mcollective"
+    exit 2
+    
+end
